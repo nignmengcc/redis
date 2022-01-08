@@ -22,7 +22,7 @@ public class RedLimiterTest {
         JedisPoolConfig jedisPoolConfig = new JedisPoolConfig();
         jedisPoolConfig.setMaxTotal(200);
         JedisPool jedisPool = new JedisPool(jedisPoolConfig, "localhost");
-        limiter = RedLimiter.create("1000", 1, jedisPool,true);
+        limiter = RedLimiter.create("1000", 2, jedisPool,true);
     }
 
     @After

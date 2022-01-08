@@ -25,7 +25,7 @@ public class RedLimiter {
     private static final String STABLE_INTERVAL_MICROS = "stableIntervalMicros";
     private static final String NEXT_FREE_TICKET_MICROS = "nextFreeTicketMicros";
 
-    private static final String SCRIPT_LUA = "RedLimiter.lua";
+    private static final String SCRIPT_LUA = "lua/RedLimiter.lua";
     private static final String SCRIPT = readScript();
 
     private static final ConcurrentMap<String, RedLimiter> LIMITERS = new ConcurrentHashMap<>();
@@ -57,9 +57,13 @@ public class RedLimiter {
 
     private void setProperties() {
         Map<String, String> limiter = new HashMap<>();
+        //当前存储的令牌数
         limiter.put(STORED_PERMITS, Double.toString(qps));
+        //最大可存储的令牌数，设置为限速器的qps
         limiter.put(MAX_PERMITS, Double.toString(qps));
+        //stableIntervalMicros 多久产生一个令牌
         limiter.put(STABLE_INTERVAL_MICROS, Double.toString(TimeUnit.SECONDS.toMicros(1L) / qps));
+        //nextFreeTicketMicros 下一次可以获取令牌的时间点  允许补充令牌的时间戳
         limiter.put(NEXT_FREE_TICKET_MICROS, "0");
 
         if (jedisPool != null) {
@@ -109,6 +113,24 @@ public class RedLimiter {
             // will not reach here
         }
         return builder.toString();
+    }
+
+    public static void main(String[] args) {
+        InputStream is = RedLimiter.class.getClassLoader().getResourceAsStream(SCRIPT_LUA);
+        Objects.requireNonNull(is);
+        StringBuilder builder = new StringBuilder();
+        try {
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(is))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    builder.append(line);
+                    builder.append("\n");
+                }
+            }
+        } catch (IOException e) {
+            // will not reach here
+        }
+        System.out.println(builder.toString());
     }
 
 
