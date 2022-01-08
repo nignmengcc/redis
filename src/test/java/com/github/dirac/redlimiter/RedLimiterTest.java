@@ -1,5 +1,6 @@
 package com.github.dirac.redlimiter;
 
+import com.google.common.collect.Lists;
 import org.junit.After;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
@@ -8,9 +9,8 @@ import redis.clients.jedis.JedisPool;
 import redis.clients.jedis.JedisPoolConfig;
 
 import java.util.Date;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
+import java.util.List;
+import java.util.concurrent.*;
 
 @Ignore
 public class RedLimiterTest {
@@ -34,10 +34,23 @@ public class RedLimiterTest {
 
     @org.junit.Test
     public void acquire() throws Exception {
+
+        List<Future<Object>> objects = Lists.newArrayList();
         for (int i = 0; i < 10; i++) {
             final int index = i;
             pool.execute(() -> {
                 double acquire = limiter.acquire(1);
+                System.out.println(index + " \t" + acquire + " \t" + new Date());
+            });
+
+            pool.submit(() -> {
+                Double acquire = limiter.acquire(1);
+                System.out.println(index + " \t" + acquire + " \t" + new Date());
+                try {
+                    Thread.sleep(acquire.intValue());
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
                 System.out.println(index + " \t" + acquire + " \t" + new Date());
             });
         }
@@ -46,14 +59,35 @@ public class RedLimiterTest {
 
     @org.junit.Test
     public void tryAcquire() throws Exception {
+        List<Future<Object>> objects = Lists.newArrayList();
         for (int i = 0; i < 10; i++) {
             final int index = i;
             pool.execute(() -> {
                 boolean acquire = limiter.tryAcquire();
                 System.out.println(index + " \t" + acquire + " \t" + new Date());
             });
+            Future<Object> submit = pool.submit((Callable<Object>) () -> {
+                while (1 == 1) {
+                    Double acquire = limiter.acquire();
+                    if (acquire.equals(Double.valueOf(0))) {
+                        System.out.println(index + " \t" + acquire + " \t" + "执行！");
+                        break;
+                    }
+                    try {
+                        Thread.sleep(1000);
+                    } catch (InterruptedException e) {
+                        System.out.println(e.getMessage());
+                    }
+                    System.out.println(index + " \t" + acquire + " \t" + new Date());
+                }
+                return true;
+            });
+            objects.add(submit);
+
         }
-        Thread.sleep(5 * 1000L);
+        for (Future<Object> object : objects) {
+            System.out.println(object.get());
+        }
     }
 
     @org.junit.Test
@@ -84,4 +118,5 @@ public class RedLimiterTest {
         }
         Thread.sleep(10 * 1000L);
     }
+
 }
